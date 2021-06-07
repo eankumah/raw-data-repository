@@ -19,6 +19,7 @@ class ConsentFileParsingTest(BaseTestCase):
             self.assertEqual(consent_example.expected_signature, consent_file.get_signature_on_file())
             self.assertEqual(consent_example.expected_sign_date, consent_file.get_date_signed())
             self.assertEqual(consent_example.expected_to_be_va_file, consent_file.get_is_va_consent())
+            # TODO: add check for consent checkmark
 
     def test_vibrent_cabor_consent(self):
         for consent_example in self._get_vibrent_cabor_test_data():
