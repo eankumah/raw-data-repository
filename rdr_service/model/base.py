@@ -116,6 +116,25 @@ def get_column_name(model_type, field_name):
     return getattr(model_type, field_name).property.columns[0].name
 
 
+def create_history_triggers(source_table_name: str, history_table_name: str, op):
+    op.execute(f'''
+      CREATE TRIGGER {source_table_name}__ai AFTER INSERT ON {source_table_name} FOR EACH ROW
+          INSERT INTO {history_table_name}
+          SELECT 'insert', NULL, NOW(6), source.*
+          FROM {source_table_name} AS source WHERE source.id = NEW.id;
+
+      CREATE TRIGGER {source_table_name}__au AFTER UPDATE ON {source_table_name} FOR EACH ROW
+          INSERT INTO {history_table_name}
+          SELECT 'update', NULL, NOW(6), source.*
+          FROM {source_table_name} AS source WHERE source.id = NEW.id;
+
+      CREATE TRIGGER {source_table_name}__bd BEFORE DELETE ON {source_table_name} FOR EACH ROW
+          INSERT INTO {history_table_name}
+          SELECT 'delete', NULL, NOW(6), source.*
+          FROM {source_table_name} AS source WHERE source.id = OLD.id;
+    ''')
+
+
 def add_table_history_table(table, op):
     """
   Create a history table and add triggers so we automatically capture record changes.
@@ -140,23 +159,16 @@ def add_table_history_table(table, op):
         ADD INDEX idx_revision (revision_id),
         CHANGE COLUMN `revision_id` `revision_id` INT(6) NOT NULL AUTO_INCREMENT,
         ADD PRIMARY KEY (`id`, revision_id);
-      
-      CREATE TRIGGER {0}__ai AFTER INSERT ON {0} FOR EACH ROW
-          INSERT INTO {0}_history SELECT 'insert', NULL, NOW(6), d.*
-          FROM {0} AS d WHERE d.id = NEW.id;
-
-      CREATE TRIGGER {0}__au AFTER UPDATE ON {0} FOR EACH ROW
-          INSERT INTO {0}_history SELECT 'update', NULL, NOW(6), d.*
-          FROM {0} AS d WHERE d.id = NEW.id;
-
-      CREATE TRIGGER {0}__bd BEFORE DELETE ON {0} FOR EACH ROW
-          INSERT INTO {0}_history SELECT 'delete', NULL, NOW(6), d.*
-          FROM {0} AS d WHERE d.id = OLD.id;
       """.format(
         table
     )
 
     op.execute(sql)
+    create_history_triggers(
+        source_table_name=table,
+        history_table_name=f'{table}_history',
+        op=op
+    )
 
 
 def drop_table_history_table(table, op):
