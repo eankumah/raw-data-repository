@@ -23,6 +23,8 @@ class ConsentTool(ToolBase):
 
         if self.args.command == 'report-errors':
             self.report_files_for_correction()
+        elif self.args.command == 'modify':
+            self.modify_file_results()
 
     def report_files_for_correction(self):
         min_validation_date = parse(self.args.since) if self.args.since else None
@@ -37,6 +39,17 @@ class ConsentTool(ToolBase):
             report_lines.append(self._line_output_for_validation(result, verbose=self.args.verbose))
 
         logger.info('\n'.join(report_lines))
+
+    def modify_file_results(self):
+        # TODO:
+        #  make changes to the record specified by the id
+        #  print the changes being made (NEEDS_CORRECTIONS => READY_TO_SYNC) and ask for confirmation
+        ...
+
+    # todo: methods for
+    #  re-evaluating sync validations in time range, and/or by type of consent
+    #  triggering validation for consents
+    #  batch-adding records (for CE participants)
 
     def _line_output_for_validation(self, file: ConsentFile, verbose: bool):
         output_line = StringIO()
@@ -91,6 +104,9 @@ def add_additional_arguments(parser: argparse.ArgumentParser):
         default=False,
         action="store_true"
     )
+
+    modify_parser = subparsers.add_parser('modify')
+    modify_parser.add_argument('--id', help='Database id of the record to modify', required=True)
 
 
 def run():
