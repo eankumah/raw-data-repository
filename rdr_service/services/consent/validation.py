@@ -50,7 +50,7 @@ class StoreResultStrategy(ValidationOutputStrategy):
         self._session = session
         self._results = []
         self._consent_dao = consent_dao
-        self._max_batch_count = 500
+        self._max_batch_count = 50
 
     def add_result(self, result: ParsingResult):
         self._results.append(result)
