@@ -125,7 +125,7 @@ def dispatch_rebuild_consent_metrics_tasks(id_list, in_seconds=15, quiet=True, b
     if not all(isinstance(id, int) for id in id_list):
         raise (ValueError, "Invalid id list; must be a list that contains only integer consent_file ids")
 
-    if False:
+    if build_locally or project_id == 'localhost':
         batch_rebuild_consent_metrics_task({'batch': id_list})
     else:
         completed_batches = 0
