@@ -514,7 +514,7 @@ class CeFileWrapper:
 
     def get_signature_on_file(self):
         signature_page = self._get_last_page()
-        signature_footer_location = self._get_location_of_string(signature_page, "Name (printed)")
+        signature_footer_location = self._get_location_of_string(signature_page, "Participant's Name (printed)")
 
         if signature_footer_location:
             signature_string_list = self._text_in_bounds(
@@ -549,10 +549,10 @@ class CeFileWrapper:
         return Rect.from_edges(
             left=footer_rect.left - 3,
             right=footer_rect.right + 200,
-            # bottom=footer_rect.top + 8,
-            # top=footer_rect.top + 10
-            bottom=footer_rect.top + 73,
-            top=footer_rect.top + 75
+            bottom=footer_rect.top + 8,
+            top=footer_rect.top + 10
+            # bottom=footer_rect.top + 73,
+            # top=footer_rect.top + 75
         )
 
     def _text_in_bounds(self, element, search_rect: Rect) -> List[str]:
