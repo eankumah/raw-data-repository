@@ -297,9 +297,12 @@ class ConsentFile(ABC):
     def get_date_signed(self):
         date_str = self._get_date_signed_str()
         if date_str:
-            return parser.parse(date_str).date()
-        else:
-            return None
+            try:
+                return parser.parse(date_str).date()
+            except parser.ParserError:
+                ...
+
+        return None
 
     def _get_date_signed_str(self):
         date_elements = self._get_date_elements()
@@ -546,14 +549,16 @@ class CeFileWrapper:
         return Rect.from_edges(
             left=footer_rect.left - 3,
             right=footer_rect.right + 200,
-            bottom=footer_rect.top + 8,
-            top=footer_rect.top + 10
+            # bottom=footer_rect.top + 8,
+            # top=footer_rect.top + 10
+            bottom=footer_rect.top + 73,
+            top=footer_rect.top + 75
         )
 
     def _text_in_bounds(self, element, search_rect: Rect) -> List[str]:
         if hasattr(element, 'get_text') and hasattr(element, 'x0') and \
                 Pdf.rect_for_element(element).intersection(search_rect) is not None:
-            return element.get_text()
+            return [element.get_text().strip()]
         elif hasattr(element, '__iter__'):
             strings = []
             characters_for_next_string = []

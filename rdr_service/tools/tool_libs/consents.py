@@ -3,6 +3,7 @@ import csv
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from itertools import islice
+from typing import Collection
 
 import requests
 
@@ -15,9 +16,11 @@ from rdr_service.dao.participant_summary_dao import ParticipantSummaryDao
 from rdr_service.resource.tasks import dispatch_rebuild_consent_metrics_tasks
 from rdr_service.services.gcp_utils import gcp_make_auth_header
 from rdr_service.model.consent_file import ConsentFile, ConsentSyncStatus, ConsentType
+from rdr_service.model.participant import Participant
+from rdr_service.model.participant_summary import ParticipantSummary
 from rdr_service.offline.sync_consent_files import ConsentSyncGuesser
 from rdr_service.services.consent.validation import ConsentValidationController, ReplacementStoringStrategy,\
-    LogResultStrategy
+    LogResultStrategy, UpdateResultStrategy
 from rdr_service.storage import GoogleCloudStorageProvider
 from rdr_service.tools.tool_libs.tool_base import cli_run, logger, ToolBase
 
@@ -156,7 +159,7 @@ class ConsentTool(ToolBase):
     def validate_consents(self):
         consent_type = None
         if self.args.type:
-            consent_type = ConsentType(self.args.type)
+            consent_type = [ConsentType(self.args.type)]
 
         controller = ConsentValidationController(
             consent_dao=ConsentDao(),
@@ -166,7 +169,7 @@ class ConsentTool(ToolBase):
         )
         with open(self.args.pid_file) as pid_file,\
                 self.get_session() as session,\
-                ReplacementStoringStrategy(session=session, consent_dao=controller.consent_dao) as store_strategy:
+                UpdateResultStrategy(session=session, consent_dao=controller.consent_dao) as store_strategy:
             # Get participant ids from the file in batches
             # (retrieving all their summaries at once, processing them before the next batch)
             participant_lookup_batch_size = 500
@@ -177,7 +180,7 @@ class ConsentTool(ToolBase):
                     controller.validate_participant_consents(
                         summary=participant_summary,
                         output_strategy=store_strategy,
-                        types_to_validate=[consent_type]
+                        types_to_validate=consent_type
                     )
                 participant_ids = list(islice(pid_file, participant_lookup_batch_size))
 

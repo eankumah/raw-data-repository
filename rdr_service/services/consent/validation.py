@@ -5,6 +5,8 @@ from io import StringIO
 import pytz
 from typing import Collection, List
 
+from sqlalchemy.orm import Session
+
 from rdr_service.dao.consent_dao import ConsentDao
 from rdr_service.dao.hpo_dao import HPODao
 from rdr_service.dao.participant_summary_dao import ParticipantSummaryDao
@@ -78,9 +80,50 @@ class StoreResultStrategy(ValidationOutputStrategy):
             dispatch_rebuild_consent_metrics_tasks([r.id for r in new_results_to_store])
 
 
+class UpdateResultStrategy(StoreResultStrategy):
+    def _get_existing_results_for_participants(self):
+        file_path_list = [file.file_path for file in self._results]
+        file_objects: List[ParsingResult] = self._session.query(ParsingResult).filter(
+            ParsingResult.file_path.in_(file_path_list)
+        ).all()
+
+        return {file.file_path: file for file in file_objects}
+
+    def process_results(self):
+        results_to_update = self._get_existing_results_for_participants()
+        updated_results = []
+        for result in self._results:
+            db_result: ParsingResult = results_to_update.get(result.file_path)
+            if db_result is None:
+                self._session.add(result)
+                updated_results.append(result)
+                # print(f'did not find {result.type} for P{result.participant_id} to update')
+            else:
+                db_result.file_exists = result.file_exists
+                db_result.type = result.type
+                db_result.is_signature_valid = result.is_signature_valid
+                db_result.is_signing_date_valid = result.is_signing_date_valid
+
+                db_result.signature_str = result.signature_str
+                db_result.is_signature_image = result.is_signature_image
+                db_result.signing_date = result.signing_date
+                db_result.expected_sign_date = result.expected_sign_date
+
+                db_result.file_upload_time = result.file_upload_time
+                db_result.other_errors = result.other_errors
+                if db_result.sync_status != ConsentSyncStatus.SYNC_COMPLETE \
+                        or result.sync_status == ConsentSyncStatus.NEEDS_CORRECTING:
+                    db_result.sync_status = result.sync_status
+                updated_results.append(db_result)
+
+        self._session.commit()
+        if updated_results:
+            dispatch_rebuild_consent_metrics_tasks([r.id for r in updated_results])
+
+
 class ReplacementStoringStrategy(ValidationOutputStrategy):
     def __init__(self, session, consent_dao: ConsentDao):
-        self.session = session
+        self.session: Session = session
         self.consent_dao = consent_dao
         self.participant_ids = set()
         self.results = self._build_consent_list_structure()
@@ -107,16 +150,16 @@ class ReplacementStoringStrategy(ValidationOutputStrategy):
         results_to_update = []
         for participant_id, consent_type_dict in self.results.items():
             for consent_type, result_list in consent_type_dict.items():
-                previous_type_list: Collection[ParsingResult] = organized_previous_results[participant_id][consent_type]
+                previous_results_of_type_for_participant: Collection[ParsingResult] = organized_previous_results[participant_id][consent_type]
                 new_results = _ValidationOutputHelper.get_new_validation_results(
-                    existing_results=previous_type_list,
+                    existing_results=previous_results_of_type_for_participant,
                     results_to_filter=result_list
                 )
 
                 if new_results:
                     ready_for_sync = self._find_file_ready_for_sync(result_list)
                     if ready_for_sync:
-                        for result in previous_type_list:
+                        for result in previous_results_of_type_for_participant:
                             if result.sync_status == ConsentSyncStatus.NEEDS_CORRECTING:
                                 result.sync_status = ConsentSyncStatus.OBSOLETE
                                 results_to_update.append(result)
@@ -239,7 +282,7 @@ class ConsentValidationController:
         self.participant_summary_dao = participant_summary_dao
         self.storage_provider = storage_provider
 
-        self.va_hpo_id = hpo_dao.get_by_name('VA').hpoId
+        self.va_hpo_id = 15
 
     @classmethod
     def build_controller(cls):
@@ -304,6 +347,7 @@ class ConsentValidationController:
                                       min_authored_date: date = None,
                                       types_to_validate: Collection[ConsentType] = None):
         validator = self._build_validator(summary)
+        print(summary.participantId)
 
         if self._check_consent_type(ConsentType.PRIMARY, types_to_validate) and self._has_consent(
             consent_status=summary.consentForStudyEnrollment,
