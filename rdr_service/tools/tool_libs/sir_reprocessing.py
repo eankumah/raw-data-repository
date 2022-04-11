@@ -20,7 +20,7 @@ class SirProcessing(ToolBase):
         only_prep_samples = set()
         transient_prep_samples = set()
 
-        for blob in sir_blobs[-50:]:
+        for blob in sir_blobs:
             logger.info(blob.name)
 
             reader = csv.DictReader(
@@ -62,7 +62,10 @@ class SirProcessing(ToolBase):
                 if id_ not in sample_ids_from_file:
                     only_prep_samples.add(id_)
                     to_be_removed_from_transient.add(id_)
-            transient_prep_samples = {id_ for id_ in transient_prep_samples if id_ not in to_be_removed_from_transient}
+            transient_prep_samples = {
+                id_ for id_ in transient_prep_samples 
+                if id_ not in to_be_removed_from_transient
+            }
 
         with open('only_prep_output.csv', 'w') as file:
             for sample_id in only_prep_samples:
