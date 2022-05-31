@@ -1,0 +1,31 @@
+Creating an RDR Environment
+As of now, raw-data-repository (RDR) is a Google App Engine application that must be run in App Engine Standard Python 3.7.
+These are the steps to stand up a new RDR environment:
+1.	Create a Google Cloud Project (PROJECT) for the environment
+2.	Enable Cloud SQL Admin API
+3.	Create required service accounts
+	See prod_service_accounts.txt
+4.	Create dedicated cloud storage buckets for the environment (as needed)
+o	See prod_buckets_list.txt
+5.	Create BigQuery rdr_ops_data_view dataset
+o	either via the web interface or with bq mk --dataset rdr_ops_data_view
+6.	Update config and tooling files
+o	Create config: “current_config.<isodate>.json”  file at gs:// pmi-drc-api-test/app_engine_configs/all-of-us-rdr-<PROJECT>
+o	Update rdr_service/tools/tool_libs/config_editor.py to handle new project.
+o	Create rdr_service/cron_<PROJECT>.yaml to override any settings from cron_default.yaml (if needed)
+o	Update rdr_service/tools/auth_setup.sh to handle the new project.
+o	Update rdr_service/tools/tool_libs/app_engine_manager.py to handle the new project.
+o	Update rdr_service/services/gcp_config.py with new project
+o	Update rdr_service/services/gcp_db_daemon.py with new project
+7.	commit changes and create local tag (TAG) <PROJECT>-initial. Do not push this tag to github.
+8.	From Google Cloud Console, Create new App Engine application (just enable it for the project)
+9.	run rdr_service/tools/tool_libs/app_engine_manager.py to deploy application to the new project.
+10.	Create Cloud Task Queues:
+ 
+11.	Create PubSub Topics:
+ 
+12.	Create PubSub notifications
+o	See prod_pub_sub_notifications.txt
+13.	Deploy Cloud Functions:
+ 
+
